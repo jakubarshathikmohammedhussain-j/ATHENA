@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Document intelligence · Athena</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="/shared.css"></head>
+<body>
+<nav class="nav"><b>Athena</b><span><a href="/">Research</a><a href="/services">Services</a></span></nav>
+<main>
+<h1>Document intelligence</h1>
+<p class="lead">Upload a contract, policy or report. Get answers with page numbers, and every quote checked against the page.</p>
+<section class="card np">
+  <label class="f">PDF with selectable text, up to 8 MB<input type="file" id="file" accept="application/pdf,.pdf"></label>
+  <div class="msg" id="msg" aria-live="polite">Your file is deleted automatically after 24 hours. Do not upload anything you are not allowed to share with an AI service.</div>
+</section>
+<div id="out" hidden>
+  <section class="card"><h2 id="dn"></h2><p id="sum"></p><div id="secs"></div></section>
+  <section class="card np"><h2>Ask this document</h2>
+    <div class="row" style="margin:0 0 12px"><button class="ghost sug" type="button">What are the key deadlines?</button><button class="ghost sug" type="button">What are the penalties or liabilities?</button><button class="ghost sug" type="button">What must we do, and by when?</button></div>
+    <div class="row" style="margin:0"><input type="text" id="q" maxlength="500" placeholder="Ask a question about this document" aria-label="Question" style="flex:1 1 240px"><button class="go" id="ask" type="button">Ask</button></div>
+    <div id="thread"></div></section>
+  <div class="row np"><button class="ghost" id="pdf" type="button">Download summary as PDF</button><button class="ghost" id="del" type="button">Delete this document</button></div>
+  <p class="note">Verified means the quoted words were found on that page of your file. Unverified means check the page yourself. AI can still misread, so confirm anything important.</p>
+</div>
+</main>
+<script>
+(function(){
+var DOC='',msg=document.getElementById('msg'),out=document.getElementById('out');
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+function post(u,b){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(function(r){return r.json().catch(function(){return {}}).then(function(j){if(!r.ok)throw new Error(j.detail||'Something went wrong. Please try again.');return j})})}
+function cite(c){var s=el('span','');s.appendChild(el('span','t '+(c.verified?'ok':'no'),'p.'+c.page+' · '+(c.verified?'verified':'unverified')));return s}
+function item(x){var li=el('li');li.appendChild(cite(x));li.appendChild(document.createTextNode(x.text));if(x.quote)li.appendChild(el('span','q','“'+x.quote+'”'));return li}
+var TITLES={dates:'Key dates',obligations:'Obligations',risks:'Risks and penalties',numbers:'Key numbers'};
+function showBrief(d){document.getElementById('sum').textContent=d.summary;var box=document.getElementById('secs');box.innerHTML='';
+  Object.keys(TITLES).forEach(function(k){if(!d[k]||!d[k].length)return;box.appendChild(el('h3','',TITLES[k]));var u=el('ul','l');d[k].forEach(function(x){u.appendChild(item(x))});box.appendChild(u)})}
+document.getElementById('file').addEventListener('change',function(){var f=this.files[0];if(!f)return;
+  if(f.size>8000000){msg.textContent='The file is larger than 8 MB.';return}
+  msg.textContent='Uploading and reading…';out.hidden=true;
+  var r=new FileReader();r.onload=function(){var b64=String(r.result).split(',')[1];
+    post('/api/doc/upload',{name:f.name,data:b64}).then(function(u){DOC=u.doc_id;document.getElementById('dn').textContent=u.name+' · '+u.pages+' pages';msg.textContent='Reading it closely…';
+      return post('/api/doc/brief',{doc_id:DOC})}).then(function(d){showBrief(d);out.hidden=false;msg.textContent='Ready.';out.scrollIntoView({behavior:'smooth'})}).catch(function(e){msg.textContent=e.message})};
+  r.onerror=function(){msg.textContent='Could not read that file.'};r.readAsDataURL(f)});
+function ask(t){t=(t||'').trim();if(!t||!DOC)return;var th=document.getElementById('thread'),b=document.getElementById('ask');b.disabled=true;
+  var c=el('div','card');c.style.margin='14px 0 0';c.appendChild(el('h3','',t));var body=el('p','','Reading the document…');body.style.color='var(--ink)';c.appendChild(body);th.insertBefore(c,th.firstChild);
+  post('/api/doc/ask',{doc_id:DOC,question:t}).then(function(d){body.textContent=d.answer;
+    if(d.citations.length){var u=el('ul','l');d.citations.forEach(function(x){u.appendChild(item({page:x.page,verified:x.verified,quote:x.quote,text:''}))});c.appendChild(u)}
+    else if(!d.found)c.appendChild(el('p','note','Not found in this document.'))}).catch(function(e){body.textContent=e.message}).then(function(){b.disabled=false})}
+document.getElementById('ask').addEventListener('click',function(){var q=document.getElementById('q');ask(q.value);q.value=''});
+document.getElementById('q').addEventListener('keydown',function(e){if(e.key==='Enter'){ask(this.value);this.value=''}});
+document.querySelectorAll('.sug').forEach(function(b){b.addEventListener('click',function(){ask(b.textContent)})});
+document.getElementById('pdf').addEventListener('click',function(){window.print()});
+document.getElementById('del').addEventListener('click',function(){if(!DOC)return;post('/api/doc/delete',{doc_id:DOC}).then(function(){DOC='';out.hidden=true;document.getElementById('file').value='';msg.textContent='Deleted.'})});
+})();
+</script></body></html>
