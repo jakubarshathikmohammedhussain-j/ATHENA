@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+httpx
+yfinance
+google-genai
+sqlalchemy
+psycopg[binary]
+pypdf
