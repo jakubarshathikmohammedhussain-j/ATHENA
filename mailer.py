@@ -15,4 +15,6 @@ def send(to, subject, html_body):
               "subject": subject, "htmlContent": html_body},
         timeout=20,
     )
-    r.raise_for_status()
+    if r.status_code >= 400:
+        raise RuntimeError(f"Brevo {r.status_code}: {r.text[:300]}")
+        
