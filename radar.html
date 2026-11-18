@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Supply chain risk radar · Athena</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="/shared.css"></head>
+<body>
+<nav class="nav"><b>Athena</b><span><a href="/">Research</a><a href="/services">Services</a></span></nav>
+<main>
+<h1>Supply chain risk radar</h1>
+<p class="lead">Add your suppliers. Athena checks weather and news for each location and flags where deliveries may be at risk.</p>
+<section class="card np">
+  <label class="f">One supplier per line: Name | City, Country | Annual spend (optional, any currency)
+    <textarea id="in" rows="6" spellcheck="false">Supplier A | Chennai, India | 4500000
+Supplier B | Shenzhen, China | 3200000
+Supplier C | Rotterdam, Netherlands | 1200000</textarea></label>
+  <div class="row"><button class="go" id="run" type="button">Run radar</button></div>
+  <div class="msg" id="msg" aria-live="polite">Up to 10 suppliers. Scores use a 7-day weather forecast plus news from the last 14 days.</div>
+</section>
+<div id="res" hidden>
+  <div class="stats" id="stats"></div>
+  <div id="list"></div>
+  <div class="row np"><button class="ghost" id="pdf" type="button">Download as PDF</button><button class="ghost" id="wk" type="button">Email me this weekly</button></div>
+  <section class="card np" id="wf" hidden style="margin-top:16px"><h2>Weekly radar by email</h2>
+    <form id="sf">
+      <label class="f w">Email<input type="email" id="se" required maxlength="254" autocomplete="email"></label>
+      <label class="f">Day<select id="sd"><option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option><option value="3">Thursday</option><option value="4">Friday</option><option value="5">Saturday</option><option value="6" selected>Sunday</option></select></label>
+      <label class="f">Time<select id="sh"></select></label>
+      <label class="f w">Timezone<input type="text" id="st" required maxlength="60"></label>
+      <label class="chk"><input type="checkbox" id="sk" required> I agree to receive these emails and can unsubscribe at any time.</label>
+      <button class="go" type="submit" style="grid-column:1/-1">Start weekly radar</button><div class="msg" id="sm" style="grid-column:1/-1" aria-live="polite"></div>
+    </form></section>
+  <p class="note">Scores flag risk to check. They are not predictions. Weather: Open-Meteo. News: headlines via Google News. Suggested actions are Athena's inference.</p>
+</div>
+</main>
+<script>
+(function(){
+var SUP=[],res=document.getElementById('res'),msg=document.getElementById('msg');
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+function post(u,b){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(function(r){return r.json().catch(function(){return {}}).then(function(j){if(!r.ok)throw new Error(j.detail||'Something went wrong. Please try again.');return j})})}
+function parse(){return document.getElementById('in').value.split('\n').map(function(l){var p=l.split('|').map(function(x){return x.trim()});if(!p[0]||!p[1])return null;return {name:p[0],location:p[1],spend:parseFloat((p[2]||'').replace(/[^0-9.]/g,''))||0}}).filter(Boolean).slice(0,10)}
+var COL={Low:'var(--ok)',Medium:'var(--warn)',High:'var(--bad)',Severe:'var(--sev)',Unknown:'var(--muted)'};
+function stat(n,l){var d=el('div');d.appendChild(el('b','',n));d.appendChild(el('span','',l));return d}
+function fmt(n){return Math.round(n).toLocaleString('en-IN')}
+function render(d){var s=d.summary,st=document.getElementById('stats'),ls=document.getElementById('list');st.innerHTML='';ls.innerHTML='';
+  st.appendChild(stat(s.high_count+' of '+s.count,'suppliers at high risk'));
+  st.appendChild(stat(s.total_spend?fmt(s.exposed_spend)+' ('+Math.round(s.exposed_pct)+'%)':'n/a','spend exposed to high risk'));
+  st.appendChild(stat(s.top||'n/a','highest risk'));
+  d.suppliers.forEach(function(x){var c=el('article','card'),h=el('div','sp'),col=COL[x.band]||COL.Unknown;
+    var t=el('div');t.appendChild(el('b','',x.name));t.appendChild(el('span','note',' '+(x.place||x.location)));h.appendChild(t);
+    var b=el('b','',x.band+(x.score==null?'':' · '+x.score));b.style.color=col;h.appendChild(b);c.appendChild(h);
+    var bar=el('div','bar'),i=el('i');i.style.width=(x.score||0)+'%';i.style.background=col;bar.appendChild(i);c.appendChild(bar);
+    if(x.note)c.appendChild(el('p','note',x.note));
+    if(x.checked)c.appendChild(el('p','note','Checked: '+(x.checked.weather?'7-day forecast ('+(x.checked.weather_source||'weather')+')':'forecast unavailable')+' · '+x.checked.headlines+' recent headlines · '+x.checked.flagged+' flagged'));
+    if(x.weather)c.appendChild(el('p','note','Next 7 days: rain up to '+Math.round(x.weather.rain_mm)+' mm, gusts up to '+Math.round(x.weather.gust_kmh)+' km/h, max '+Math.round(x.weather.temp_c)+' °C'));
+    if(x.drivers.length){var u=el('ul','l');x.drivers.forEach(function(d){var li=el('li');li.appendChild(el('span','t',d.type));li.appendChild(document.createTextNode(d.text+' '));
+      if(d.url&&/^https?:/.test(d.url)){var a=el('a','note',d.source);a.href=d.url;a.target='_blank';a.rel='noopener';li.appendChild(a)}else li.appendChild(el('span','note',d.source));u.appendChild(li)});c.appendChild(u)}
+    if(x.actions.length){c.appendChild(el('h3','','Suggested actions'));var u2=el('ul','l');x.actions.forEach(function(a){u2.appendChild(el('li','',a))});c.appendChild(u2)}
+    ls.appendChild(c)});res.hidden=false}
+document.getElementById('run').addEventListener('click',function(){var b=this;SUP=parse();if(!SUP.length){msg.textContent='Add at least one line like: Name | City, Country | spend';return}
+  b.disabled=true;msg.textContent='Checking weather and news for each location…';
+  post('/api/radar',{suppliers:SUP}).then(function(d){msg.textContent='Done.';render(d);res.scrollIntoView({behavior:'smooth'})}).catch(function(e){msg.textContent=e.message}).then(function(){b.disabled=false})});
+document.getElementById('pdf').addEventListener('click',function(){window.print()});
+document.getElementById('wk').addEventListener('click',function(){document.getElementById('wf').hidden=false;document.getElementById('wf').scrollIntoView({behavior:'smooth'})});
+var sh=document.getElementById('sh');for(var h=0;h<24;h++){var o=el('option','',(h%12||12)+':00 '+(h<12?'am':'pm'));o.value=h;if(h===10)o.selected=true;sh.appendChild(o)}
+try{document.getElementById('st').value=Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Kolkata'}catch(e){document.getElementById('st').value='Asia/Kolkata'}
+document.getElementById('sf').addEventListener('submit',function(e){e.preventDefault();var m=document.getElementById('sm'),b=this.querySelector('.go');b.disabled=true;m.textContent='Sending…';
+  post('/api/subscribe',{kind:'radar',email:document.getElementById('se').value,consent:document.getElementById('sk').checked,params:{suppliers:SUP},
+    sched:{day:+document.getElementById('sd').value,hour:+sh.value,tz:document.getElementById('st').value.trim()}}).then(function(j){m.textContent=j.message}).catch(function(e){m.textContent=e.message}).then(function(){b.disabled=false})});
+})();
+</script></body></html>
