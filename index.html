@@ -179,8 +179,8 @@ function table(P){var box=document.getElementById('tbl');box.innerHTML='';
     ['Operating margin','Profit from operations per unit of revenue',function(p){return pct((p.metrics||{}).operating_margin)}],
     ['P/E ratio','Share price relative to earnings. Higher means investors expect more growth',function(p){var v=(p.metrics||{}).pe;return v?v.toFixed(1):''}],
     ['12-month price change','How the share price moved over the last year',function(p){var r=pctv(p);return r==null?'':pct(r,true)}],
-    ['Latest price','Most recent weekly close',function(p){var s=p.stats||{};return s.price?(((p.metrics||{}).currency||'')+' '+s.price.toFixed(2)).trim():''}],
-    ['52-week range','Lowest and highest weekly close in the past year',function(p){var s=p.stats||{};return s.low_52w?s.low_52w.toFixed(2)+' to '+s.high_52w.toFixed(2):''}],
+    ['Latest price','Most recent daily close',function(p){var s=p.stats||{};return s.price?(((p.metrics||{}).currency||'')+' '+s.price.toFixed(2)).trim():''}],
+    ['52-week range','Lowest and highest daily close in the past year',function(p){var s=p.stats||{};return s.low_52w?s.low_52w.toFixed(2)+' to '+s.high_52w.toFixed(2):''}],
     ['Volatility','How much the price swings over a year. Higher means riskier',function(p){var s=p.stats||{};return s.volatility!=null?pct(s.volatility):''}],
     ['Biggest drop','Worst fall from a peak over the past year',function(p){var s=p.stats||{};return s.max_drawdown!=null?pct(s.max_drawdown):''}]];
   var t=el('table'),hr=el('tr');hr.appendChild(el('th','','Metric'));P.forEach(function(p){hr.appendChild(el('th','',p.company))});t.appendChild(hr);
