@@ -173,7 +173,7 @@ def get_news(name, n=10):
 
 
 def get_history(sym):
-    try: 
+    try:
         h = yf.Ticker(sym).history(period="1y", interval="1d")["Close"].dropna()
         return [[d.strftime("%Y-%m-%d"), round(float(v), 2)] for d, v in h.items()]
     except Exception:
@@ -192,8 +192,8 @@ def derive(h):
     for v in c:
         peak = max(peak, v)
         dd = min(dd, v / peak - 1)
-    return {"price": c[-1], "low_52w": min(c), "high_52w": max(c), "change_12m": c[-1] / c[0] - 1,
-            "volatility": (var ** 0.5) * (252 ** 0.5)
+        return {"price": c[-1], "low_52w": min(c), "high_52w": max(c), "change_12m": c[-1] / c[0] - 1,
+            "volatility": (var ** 0.5) * (252 ** 0.5), "max_drawdown": dd}
 
 
 def company_pack(name, tag):
